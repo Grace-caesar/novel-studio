@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>墨语 · Novel Studio</title>
+  <meta name="description" content="一个零依赖的 AI 长篇小说生成器：设定 → 大纲 → 逐章正文，流式输出，本地存储。" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23c8553d'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23fff8ee' font-family='serif'%3E墨%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">墨</div>
+        <div class="brand-text">
+          <strong>墨语</strong>
+          <span>Novel Studio</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-new">＋ 新建小说</button>
+
+      <nav class="project-list" id="project-list" aria-label="作品列表"></nav>
+
+      <div class="sidebar-foot">
+        <button class="btn btn-ghost btn-block" id="btn-settings">⚙ 模型设置</button>
+        <p class="mode-hint" id="mode-hint">演示模式 · 未配置 API Key</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title">
+          <input id="project-title" class="title-input" placeholder="小说标题" spellcheck="false" />
+          <span class="meta" id="project-meta"></span>
+        </div>
+        <div class="topbar-actions">
+          <div class="tabs" role="tablist">
+            <button class="tab is-active" data-tab="setup">设定</button>
+            <button class="tab" data-tab="outline">大纲</button>
+            <button class="tab" data-tab="chapters">正文</button>
+          </div>
+          <button class="btn btn-ghost" id="btn-export" title="导出 Markdown">导出 .md</button>
+        </div>
+      </header>
+
+      <section class="empty" id="empty-state">
+        <h2>还没有作品</h2>
+        <p>新建一部小说，填几句设定，让 AI 帮你把大纲和正文写出来。</p>
+        <button class="btn btn-primary" id="btn-empty-new">＋ 新建小说</button>
+      </section>
+
+      <section class="panel" id="panel-setup" hidden>
+        <div class="panel-head">
+          <h2>故事设定</h2>
+          <p class="hint">这些内容会作为上下文喂给模型，写得越具体，生成越稳定。</p>
+        </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>题材</span>
+            <input data-setup="genre" placeholder="玄幻 / 悬疑 / 都市 / 科幻…" />
+          </label>
+          <label class="field">
+            <span>文风</span>
+            <input data-setup="style" placeholder="轻松幽默 / 冷峻克制…" />
+          </label>
+          <label class="field">
+            <span>叙事视角</span>
+            <input data-setup="pov" placeholder="第三人称 / 第一人称" />
+          </label>
+          <label class="field field-wide">
+            <span>一句话梗概</span>
+            <input data-setup="premise" placeholder="一个关于……的故事" />
+          </label>
+          <label class="field field-wide">
+            <span>世界观</span>
+            <textarea data-setup="world" rows="4" placeholder="时代背景、力量体系、规则与禁忌…"></textarea>
+          </label>
+          <label class="field field-wide">
+            <span>主角设定</span>
+            <textarea data-setup="protagonist" rows="3" placeholder="姓名、身份、欲望、缺陷…"></textarea>
+          </label>
+          <label class="field field-wide">
+            <span>额外要求</span>
+            <textarea data-setup="extra" rows="2" placeholder="例如：每章 3000 字，多写对话，不要金手指"></textarea>
+          </label>
+        </div>
+        <p class="save-state" id="setup-state"></p>
+      </section>
+
+      <section class="panel" id="panel-outline" hidden>
+        <div class="panel-head panel-head-row">
+          <div>
+            <h2>分章大纲</h2>
+            <p class="hint">一次生成全书骨架；标题和要点都可以手动改。</p>
+          </div>
+          <button class="btn btn-primary" id="btn-outline">✦ 生成大纲</button>
+        </div>
+        <div class="outline-list" id="outline-list"></div>
+      </section>
+
+      <section class="panel panel-split" id="panel-chapters" hidden>
+        <div class="chapter-rail">
+          <div class="rail-head">
+            <span>章节</span>
+            <button class="btn btn-mini" id="btn-add-chapter" title="新增章节">＋</button>
+          </div>
+          <div id="chapter-list" class="chapter-list"></div>
+        </div>
+        <div class="editor">
+          <div class="editor-head">
+            <input id="chapter-title" class="chapter-title-input" placeholder="章节标题" spellcheck="false" />
+            <span class="meta" id="chapter-meta"></span>
+          </div>
+          <textarea id="chapter-body" class="chapter-body" spellcheck="false" placeholder="正文会出现在这里。点下面的「生成本章」开始。"></textarea>
+          <div class="editor-foot">
+            <div class="editor-actions">
+              <button class="btn btn-primary" data-write="write">✦ 生成本章</button>
+              <button class="btn btn-ghost" data-write="continue">↳ 续写</button>
+              <button class="btn btn-ghost" data-write="rewrite">↻ 重写</button>
+              <button class="btn btn-danger" id="btn-del-chapter">删除本章</button>
+            </div>
+            <span class="status" id="write-status"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="dialog" id="settings-dialog">
+    <form method="dialog" class="dialog-inner" id="settings-form">
+      <h2>模型设置</h2>
+      <p class="hint">兼容任何 OpenAI 格式的接口。不填 API Key 时使用内置演示模式。</p>
+      <label class="field">
+        <span>接口地址 base_url</span>
+        <input id="set-base-url" placeholder="https://api.deepseek.com/v1" />
+      </label>
+      <label class="field">
+        <span>模型名称 model</span>
+        <input id="set-model" placeholder="deepseek-chat" />
+      </label>
+      <label class="field">
+        <span>API Key</span>
+        <input id="set-api-key" type="password" placeholder="sk-…（只保存在本机 data/settings.json）" />
+      </label>
+      <div class="form-grid">
+        <label class="field">
+          <span>temperature</span>
+          <input id="set-temperature" type="number" step="0.1" min="0" max="2" />
+        </label>
+        <label class="field">
+          <span>每章字数</span>
+          <input id="set-chapter-words" type="number" min="300" max="8000" step="100" />
+        </label>
+        <label class="field">
+          <span>大纲章数</span>
+          <input id="set-outline-chapters" type="number" min="1" max="40" />
+        </label>
+        <label class="field">
+          <span>max_tokens</span>
+          <input id="set-max-tokens" type="number" min="256" max="32768" step="256" />
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <span class="hint" id="key-state"></span>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost" value="cancel" id="btn-settings-cancel">取消</button>
+        <button class="btn btn-primary" value="save" id="btn-settings-save">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
