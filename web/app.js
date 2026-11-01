@@ -310,9 +310,12 @@ function scheduleProjectPatch(kind) {
   clearTimeout(state.saveTimer);
   state.saveTimer = setTimeout(async () => {
     if (!state.project) return;
-    const payload = kind === "outline"
-      ? { outline: (state.project.outline || []).map((item) => ({ ...item })) }
-      : { setup: { ...(state.project.setup || {}) } };
+    const payload = { title: state.project.title };
+    if (kind === "outline") {
+      payload.outline = (state.project.outline || []).map((item) => ({ ...item }));
+    } else {
+      payload.setup = { ...(state.project.setup || {}) };
+    }
     try {
       await api(`/api/projects/${state.project.id}`, {
         method: "PATCH",
